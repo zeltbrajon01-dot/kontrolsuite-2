@@ -23,7 +23,7 @@ const ICON_MAP = {
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { modulosActivos, reorderModulos } = useModulos()
-  const { empresa, perfil, logout }        = useAuth()
+  const { perfil, logout }                 = useAuth()
   const { theme }                          = useTheme()
   const logoSrc = theme === 'claro' ? '/logo-negro.png' : '/logo-blanco.png'
   // negro-pro has a black sidebar but light content — sidebar logo stays white
@@ -99,11 +99,11 @@ export default function Sidebar({ collapsed, onToggle }) {
         }}
       >
         {!collapsed && (
-          <div style={{ overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
             <img
               src={logoSrc}
               alt="KontrolSuite"
-              style={{ minWidth: '140px', height: 'auto', display: 'block' }}
+              style={{ width: '120px', height: 'auto', display: 'block' }}
             />
           </div>
         )}
