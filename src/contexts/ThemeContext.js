@@ -7,6 +7,7 @@ const THEMES = [
   { id: 'esmeralda', nombre: 'Verde Esmeralda',    preview: '#064e3b' },
   { id: 'morado',    nombre: 'Morado Moderno',     preview: '#4c1d95' },
   { id: 'negro',     nombre: 'Negro',              preview: '#000000' },
+  { id: 'negro-pro', nombre: 'Negro Profesional',  preview: '#000000' },
 ]
 
 const STORAGE_KEY = 'ks_theme'

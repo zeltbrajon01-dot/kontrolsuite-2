@@ -128,6 +128,27 @@
   --shadow:           0 4px 24px rgba(0,0,0,.9);
 }
 
+/* ── Theme: Negro Profesional ────────────────────────────────── */
+[data-theme="negro-pro"] {
+  --bg:               #f8fafc;
+  --surface:          #ffffff;
+  --surface-2:        #f1f5f9;
+  --sidebar:          #000000;
+  --sidebar-active:   #1a1a1a;
+  --sidebar-text:     #9ca3af;
+  --sidebar-text-act: #ffffff;
+  --primary:          #2563eb;
+  --primary-hover:    #1d4ed8;
+  --primary-light:    #dbeafe;
+  --text:             #1a1a1a;
+  --text-muted:       #64748b;
+  --border:           #e2e8f0;
+  --success:          #16a34a;
+  --warning:          #d97706;
+  --danger:           #dc2626;
+  --shadow:           0 2px 12px rgba(0,0,0,.08);
+}
+
 /* ── Base ─────────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
 

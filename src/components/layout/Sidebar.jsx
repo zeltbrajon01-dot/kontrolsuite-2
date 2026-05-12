@@ -26,6 +26,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { empresa, perfil, logout }        = useAuth()
   const { theme }                          = useTheme()
   const logoSrc = theme === 'claro' ? '/logo-negro.png' : '/logo-blanco.png'
+  // negro-pro has a black sidebar but light content — sidebar logo stays white
 
   const [items, setItems]       = useState(modulosActivos)
   const dragIdxRef              = useRef(null)
@@ -102,13 +103,8 @@ export default function Sidebar({ collapsed, onToggle }) {
             <img
               src={logoSrc}
               alt="KontrolSuite"
-              style={{ height: '32px', width: 'auto', display: 'block', flexShrink: 0 }}
+              style={{ minWidth: '140px', height: 'auto', display: 'block' }}
             />
-            {empresa && (
-              <div style={{ fontSize: '.7rem', color: 'var(--sidebar-text)', opacity: .75, marginTop: '.35rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {empresa.nombre}
-              </div>
-            )}
           </div>
         )}
         <button
