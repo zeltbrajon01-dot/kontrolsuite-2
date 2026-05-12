@@ -6,6 +6,7 @@ const THEMES = [
   { id: 'azul-corp', nombre: 'Azul Corporativo',   preview: '#1e3a5f' },
   { id: 'esmeralda', nombre: 'Verde Esmeralda',    preview: '#064e3b' },
   { id: 'morado',    nombre: 'Morado Moderno',     preview: '#4c1d95' },
+  { id: 'negro',     nombre: 'Negro',              preview: '#000000' },
 ]
 
 const STORAGE_KEY = 'ks_theme'

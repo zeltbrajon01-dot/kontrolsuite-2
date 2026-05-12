@@ -93,14 +93,19 @@ export default function Register() {
               ? 'Tu empresa fue creada. Entrando al dashboard…'
               : 'Haz clic en el enlace que te enviamos para activar tu cuenta y luego inicia sesión.'}
           </span>
-          {successMsg === 'confirm' && (
-            <Link
-              to="/login"
-              style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', fontSize: '.875rem' }}
-            >
-              Ir al login
-            </Link>
-          )}
+          {/* Link SIEMPRE en DOM, display toggle — evita insertBefore en flex container */}
+          <Link
+            to="/login"
+            style={{
+              display:        successMsg === 'confirm' ? 'inline-block' : 'none',
+              color:          'var(--primary)',
+              fontWeight:     600,
+              textDecoration: 'none',
+              fontSize:       '.875rem',
+            }}
+          >
+            Ir al login
+          </Link>
         </div>
 
         {/* ── Panel del formulario: siempre en DOM, visible con CSS ── */}

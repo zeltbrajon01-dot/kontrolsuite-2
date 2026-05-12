@@ -107,6 +107,27 @@
   --shadow:           0 2px 12px rgba(0,0,0,.08);
 }
 
+/* ── Theme: Negro ────────────────────────────────────────────── */
+[data-theme="negro"] {
+  --bg:               #000000;
+  --surface:          #1a1a1a;
+  --surface-2:        #222222;
+  --sidebar:          #111111;
+  --sidebar-active:   #1a1a1a;
+  --sidebar-text:     #9ca3af;
+  --sidebar-text-act: #ffffff;
+  --primary:          #2563eb;
+  --primary-hover:    #1d4ed8;
+  --primary-light:    #1e3a6e;
+  --text:             #ffffff;
+  --text-muted:       #9ca3af;
+  --border:           #333333;
+  --success:          #22c55e;
+  --warning:          #f59e0b;
+  --danger:           #ef4444;
+  --shadow:           0 4px 24px rgba(0,0,0,.9);
+}
+
 /* ── Base ─────────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
 

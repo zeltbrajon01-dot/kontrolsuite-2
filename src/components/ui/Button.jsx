@@ -24,7 +24,23 @@ export default function Button({
       onClick={onClick}
       {...props}
     >
-      {loading && <span className="spinner" style={{ width: '.85rem', height: '.85rem' }} />}
+      {/*
+        Spinner SIEMPRE en el DOM — nunca insertado/eliminado condicionalmente.
+        {loading && <span>} causa insertBefore(span, textNode) cuando loading
+        cambia a true. Si el browser o una extensión modificó los hijos del
+        botón entre renders, el textNode ya no es hijo directo → error.
+        Con display:none/inline-block el nodo existe desde el primer render
+        y React nunca necesita hacer insertBefore.
+      */}
+      <span
+        aria-hidden="true"
+        className="spinner"
+        style={{
+          display: loading ? 'inline-block' : 'none',
+          width:  '.85rem',
+          height: '.85rem',
+        }}
+      />
       {children}
     </button>
   )

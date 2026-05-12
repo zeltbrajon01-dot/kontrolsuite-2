@@ -41,30 +41,35 @@ export function useSupabaseTable(tableName, { empresaId, filters = [], orderBy =
 
   // ── Update a single row ────────────────────────────────────────
   const updateRow = async (id, updates) => {
-    const { data, error: err } = await supabase
+    const { error: err } = await supabase
       .from(tableName)
       .update(updates)
       .eq('id', id)
-      .select()
-      .single()
 
+    // Optimistic update — avoids the .select().single() PGRST116 RLS trap
     if (!err) {
-      setRows(prev => prev.map(r => r.id === id ? { ...r, ...data } : r))
+      setRows(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
     }
-    return { data, error: err }
+    return { data: null, error: err }
   }
 
   // ── Insert a new row ───────────────────────────────────────────
   const addRow = async (newRow) => {
-    const payload = empresaId ? { ...newRow, empresa_id: empresaId } : newRow
-    const { data, error: err } = await supabase
+    if (!empresaId) {
+      return { data: null, error: { message: 'empresa_id es null — usuario sin empresa activa. Cierra sesión y vuelve a entrar.' } }
+    }
+    const { empresa_id: _drop, ...rest } = newRow || {}
+    const payload = { ...rest, empresa_id: empresaId }
+
+    // No .select().single() — that combo fails with PGRST116 when RLS allows
+    // INSERT but blocks the implicit RETURNING SELECT. Plain insert + refetch
+    // is resilient to any RLS SELECT policy configuration.
+    const { error: err } = await supabase
       .from(tableName)
       .insert(payload)
-      .select()
-      .single()
 
-    if (!err) setRows(prev => [...prev, data])
-    return { data, error: err }
+    if (!err) await fetchData()
+    return { data: null, error: err }
   }
 
   // ── Delete a row ───────────────────────────────────────────────

@@ -7,23 +7,46 @@ export default function Input({
   className = '',
   ...props
 }) {
-  const inputId = id || label?.toLowerCase().replace(/\s+/g, '-')
+  const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : undefined)
 
   return (
-    <div className="flex flex-col gap-1">
-      {label && (
-        <label htmlFor={inputId} style={{ color: 'var(--text-muted)', fontSize: '.8rem', fontWeight: 600 }}>
-          {label}
-        </label>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {/*
+        label y error SIEMPRE en el DOM con display toggle.
+        {label && <label>} causa insertBefore cuando password managers
+        inyectan nodos en este contenedor: React pierde la referencia al
+        <input> como nodo hermano y el insertBefore falla.
+        Con el nodo siempre presente, la estructura DOM nunca cambia.
+      */}
+      <label
+        htmlFor={inputId}
+        style={{
+          display:    label ? 'block' : 'none',
+          color:      'var(--text-muted)',
+          fontSize:   '.8rem',
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
       <input
         id={inputId}
         className={`input-themed ${className}`}
         {...props}
       />
-      {error && (
-        <span style={{ color: 'var(--danger)', fontSize: '.75rem' }}>{error}</span>
-      )}
+
+      <span
+        role="alert"
+        style={{
+          display:    error ? 'block' : 'none',
+          color:      'var(--danger)',
+          fontSize:   '.75rem',
+          lineHeight: 1.3,
+        }}
+      >
+        {error}
+      </span>
     </div>
   )
 }
