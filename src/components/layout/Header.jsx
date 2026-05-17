@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { BellIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { BellIcon, MagnifyingGlassIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 
@@ -22,7 +22,7 @@ const ROUTE_TITLES = {
   '/sistema':       'Sistema',
 }
 
-export default function Header({ sidebarWidth }) {
+export default function Header({ sidebarWidth, isMobile, onHamburger }) {
   const location              = useLocation()
   const navigate              = useNavigate()
   const { perfil }            = useAuth()
@@ -57,49 +57,79 @@ export default function Header({ sidebarWidth }) {
       display:        'flex',
       alignItems:     'center',
       justifyContent: 'space-between',
-      padding:        '0 1.5rem',
+      padding:        isMobile ? '0 .875rem' : '0 1.5rem',
       zIndex:         30,
       transition:     'left .2s ease-in-out',
+      gap:            '.5rem',
     }}>
 
-      {/* Left: page title */}
-      <h1 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text)' }}>
-        {title}
-      </h1>
+      {/* Left: hamburger (mobile) + page title */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem', minWidth: 0 }}>
+        {isMobile && (
+          <button
+            onClick={onHamburger}
+            aria-label="Abrir menú"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text)', padding: '.3rem', borderRadius: '.375rem',
+              display: 'flex', alignItems: 'center', flexShrink: 0,
+              minWidth: 44, minHeight: 44, justifyContent: 'center',
+            }}
+          >
+            <Bars3Icon style={{ width: '1.35rem', height: '1.35rem' }} />
+          </button>
+        )}
+        <h1 style={{
+          margin: 0,
+          fontSize: isMobile ? '1rem' : '1.1rem',
+          fontWeight: 700,
+          color: 'var(--text)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {title}
+        </h1>
+      </div>
 
       {/* Right: controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '.5rem' : '.75rem', flexShrink: 0 }}>
 
-        {/* Search */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <MagnifyingGlassIcon style={{
-            position: 'absolute', left: '.6rem',
-            width: '.9rem', height: '.9rem',
-            color: 'var(--text-muted)', pointerEvents: 'none',
-          }} />
-          <input
+        {/* Search — hidden on mobile */}
+        {!isMobile && (
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <MagnifyingGlassIcon style={{
+              position: 'absolute', left: '.6rem',
+              width: '.9rem', height: '.9rem',
+              color: 'var(--text-muted)', pointerEvents: 'none',
+            }} />
+            <input
+              className="input-themed"
+              style={{ paddingLeft: '2rem', width: 180, fontSize: '.8rem', padding: '.35rem .75rem .35rem 2rem' }}
+              placeholder="Buscar..."
+            />
+          </div>
+        )}
+
+        {/* Theme picker — hidden on mobile */}
+        {!isMobile && (
+          <select
+            value={theme}
+            onChange={e => setTheme(e.target.value)}
             className="input-themed"
-            style={{ paddingLeft: '2rem', width: 180, fontSize: '.8rem', padding: '.35rem .75rem .35rem 2rem' }}
-            placeholder="Buscar..."
-          />
-        </div>
-
-        {/* Theme picker */}
-        <select
-          value={theme}
-          onChange={e => setTheme(e.target.value)}
-          className="input-themed"
-          style={{ width: 'auto', padding: '.35rem .6rem', fontSize: '.75rem' }}
-        >
-          {themes.map(t => (
-            <option key={t.id} value={t.id}>{t.nombre}</option>
-          ))}
-        </select>
+            style={{ width: 'auto', padding: '.35rem .6rem', fontSize: '.75rem' }}
+          >
+            {themes.map(t => (
+              <option key={t.id} value={t.id}>{t.nombre}</option>
+            ))}
+          </select>
+        )}
 
         {/* Notifications */}
         <button style={{
           background: 'none', border: 'none', cursor: 'pointer',
           color: 'var(--text-muted)', padding: '.3rem', borderRadius: '.375rem',
+          minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <BellIcon style={{ width: '1.15rem', height: '1.15rem' }} />
         </button>
@@ -110,7 +140,7 @@ export default function Header({ sidebarWidth }) {
             onClick={() => setShowProfile(v => !v)}
             title={perfil?.nombre || 'Perfil'}
             style={{
-              width: 32, height: 32, borderRadius: '50%',
+              width: 36, height: 36, borderRadius: '50%',
               background: 'var(--primary)', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '.8rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0,
@@ -131,7 +161,9 @@ export default function Header({ sidebarWidth }) {
               className="card animate-fadeIn"
               style={{
                 position: 'absolute', top: 44, right: 0,
-                width: 276, zIndex: 200,
+                width: isMobile ? 'calc(100vw - 1.75rem)' : 276,
+                maxWidth: 320,
+                zIndex: 200,
                 padding: '1.25rem',
               }}
             >
@@ -182,6 +214,23 @@ export default function Header({ sidebarWidth }) {
                       <span style={{ color: 'var(--text)', textTransform: 'capitalize' }}>{perfil.rol}</span>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Theme picker on mobile — inside profile card */}
+              {isMobile && (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '.75rem', marginBottom: '.75rem' }}>
+                  <label style={{ display: 'block', fontSize: '.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '.4rem' }}>Tema</label>
+                  <select
+                    value={theme}
+                    onChange={e => setTheme(e.target.value)}
+                    className="input-themed"
+                    style={{ width: '100%', padding: '.45rem .6rem', fontSize: '.82rem' }}
+                  >
+                    {themes.map(t => (
+                      <option key={t.id} value={t.id}>{t.nombre}</option>
+                    ))}
+                  </select>
                 </div>
               )}
 

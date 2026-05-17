@@ -21,7 +21,7 @@ const ICON_MAP = {
   ShieldCheckIcon, SparklesIcon,
 }
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, isMobile, mobileOpen }) {
   const { modulosActivos, reorderModulos } = useModulos()
   const { perfil, logout }                 = useAuth()
   const { theme }                          = useTheme()
@@ -69,8 +69,9 @@ export default function Sidebar({ collapsed, onToggle }) {
   return (
     <aside
       style={{
-        width:         collapsed ? 64 : 240,
-        transition:    'width .2s ease-in-out',
+        width:         isMobile ? 260 : (collapsed ? 64 : 240),
+        transition:    'width .2s ease-in-out, transform .25s ease-in-out',
+        transform:     isMobile ? (mobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'translateX(0)',
         background:    'var(--sidebar)',
         borderRight:   '1px solid var(--border)',
         height:        '100vh',
@@ -79,7 +80,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         left:          0,
         display:       'flex',
         flexDirection: 'column',
-        zIndex:        40,
+        zIndex:        39,
         overflow:      'hidden',
         flexShrink:    0,
       }}
@@ -89,21 +90,21 @@ export default function Sidebar({ collapsed, onToggle }) {
         style={{
           paddingTop:     '24px',
           paddingBottom:  '20px',
-          paddingLeft:    collapsed ? '.75rem' : '1rem',
-          paddingRight:   collapsed ? '.75rem' : '1rem',
+          paddingLeft:    collapsed && !isMobile ? '.75rem' : '1rem',
+          paddingRight:   collapsed && !isMobile ? '.75rem' : '1rem',
           borderBottom:   '1px solid var(--border)',
           display:        'flex',
           alignItems:     'center',
-          justifyContent: collapsed ? 'center' : 'space-between',
+          justifyContent: collapsed && !isMobile ? 'center' : 'space-between',
           flexShrink:     0,
         }}
       >
-        {!collapsed && (
-          <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+        {(!collapsed || isMobile) && (
+          <div style={{ display: 'flex', justifyContent: 'center', flex: 1 }}>
             <img
               src={logoSrc}
               alt="KontrolSuite"
-              style={{ width: '120px', height: 'auto', display: 'block' }}
+              style={{ width: '110px', height: 'auto', display: 'block' }}
             />
           </div>
         )}
@@ -112,9 +113,9 @@ export default function Sidebar({ collapsed, onToggle }) {
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sidebar-text)', padding: '.3rem', borderRadius: '.375rem', transition: 'background .15s', flexShrink: 0 }}
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-active)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
-          title={collapsed ? 'Expandir' : 'Contraer'}
+          title={collapsed && !isMobile ? 'Expandir' : 'Cerrar'}
         >
-          {collapsed
+          {collapsed && !isMobile
             ? <Bars3Icon style={{ width: '1.1rem', height: '1.1rem' }} />
             : <XMarkIcon style={{ width: '1.1rem', height: '1.1rem' }} />
           }
@@ -125,7 +126,8 @@ export default function Sidebar({ collapsed, onToggle }) {
       <ul style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '.5rem', margin: 0, listStyle: 'none' }}>
         {items.map((mod, index) => {
           const fase      = FASE_CONFIG[mod.modulo_id] ?? 0
-          const showLabel = !collapsed && fase !== 0 && fase !== lastFase
+          const expanded  = !collapsed || isMobile
+          const showLabel = expanded && fase !== 0 && fase !== lastFase
           lastFase = fase
           const Icon = ICON_MAP[mod.icono] || HomeIcon
 
@@ -153,7 +155,7 @@ export default function Sidebar({ collapsed, onToggle }) {
               </li>
 
               <li
-                draggable={!collapsed}
+                draggable={expanded && !isMobile}
                 onDragStart={e => onDragStart(e, index)}
                 onDragOver={e  => onDragOver(e, index)}
                 onDrop={onDrop}
@@ -163,16 +165,16 @@ export default function Sidebar({ collapsed, onToggle }) {
                 <NavLink
                   to={mod.ruta}
                   className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-                  title={collapsed ? mod.nombre : undefined}
+                  title={!expanded ? mod.nombre : undefined}
                   style={{ userSelect: 'none' }}
                 >
-                  {!collapsed && (
+                  {expanded && !isMobile && (
                     <span style={{ cursor: 'grab', color: 'var(--sidebar-text)', opacity: .3, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                       <Bars3Icon style={{ width: '.75rem', height: '.75rem' }} />
                     </span>
                   )}
                   <Icon style={{ width: '1.1rem', height: '1.1rem', flexShrink: 0 }} />
-                  {!collapsed && (
+                  {expanded && (
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {mod.nombre}
                     </span>
@@ -186,7 +188,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
       {/* ── Footer: user + logout ─────────────────────────────── */}
       <div style={{ padding: '.75rem .5rem', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-        {!collapsed && perfil && (
+        {(!collapsed || isMobile) && perfil && (
           <div style={{ padding: '.4rem .75rem', marginBottom: '.4rem' }}>
             <div style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--sidebar-text-act)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {perfil.nombre}
@@ -199,13 +201,13 @@ export default function Sidebar({ collapsed, onToggle }) {
         <button
           onClick={logout}
           className="sidebar-link"
-          style={{ width: '100%', background: 'none', border: 'none', justifyContent: collapsed ? 'center' : 'flex-start' }}
-          title={collapsed ? 'Cerrar sesión' : undefined}
+          style={{ width: '100%', background: 'none', border: 'none', justifyContent: collapsed && !isMobile ? 'center' : 'flex-start' }}
+          title={collapsed && !isMobile ? 'Cerrar sesión' : undefined}
         >
           <svg style={{ width: '1.1rem', height: '1.1rem', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          {!collapsed && <span>Cerrar sesión</span>}
+          {(!collapsed || isMobile) && <span>Cerrar sesión</span>}
         </button>
       </div>
     </aside>

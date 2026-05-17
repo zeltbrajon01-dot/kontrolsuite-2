@@ -166,7 +166,7 @@ export default function KanbanBoard({
   }
 
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: '.75rem' }}>
+    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '.75rem' }}>
       {cardError && (
         <div style={{
           display: 'flex', alignItems: 'flex-start', gap: '.75rem', marginBottom: '.75rem',

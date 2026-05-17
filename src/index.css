@@ -356,3 +356,83 @@ body {
   box-shadow: 0 20px 60px rgba(0,0,0,.4);
   animation: fadeIn .2s ease-out;
 }
+
+/* ── Responsive — Tablet (≤ 768px) ──────────────────────────── */
+@media (max-width: 768px) {
+  /* Touch targets: minimum 44px height on interactive elements */
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger {
+    min-height: 44px;
+    padding: .6rem 1.1rem;
+  }
+
+  .input-themed,
+  select.input-themed {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .sidebar-link {
+    min-height: 44px;
+    padding: .65rem .875rem;
+    font-size: .925rem;
+  }
+
+  /* Cards: full-width, no overflow clipping */
+  .card {
+    border-radius: .625rem;
+  }
+
+  /* Table containers: always scrollable horizontally */
+  .table-themed {
+    min-width: 600px;
+  }
+
+  /* Table cells: slightly more padding for touch */
+  .table-themed th,
+  .table-themed td {
+    padding: .75rem .875rem;
+  }
+
+  /* Modal: full-width on mobile */
+  .modal-box {
+    border-radius: .625rem;
+    max-width: 100%;
+    margin: 0 .5rem;
+  }
+}
+
+/* ── Responsive — Mobile (≤ 480px) ──────────────────────────── */
+@media (max-width: 480px) {
+  /* Slightly smaller text for headers on small screens */
+  .card {
+    border-radius: .5rem;
+  }
+
+  /* Stacked toolbar in DynamicTable */
+  .dt-toolbar {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .dt-toolbar-actions {
+    flex-wrap: wrap;
+  }
+  .dt-toolbar-actions input {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Badge full-size on tiny screens */
+  .badge {
+    font-size: .8rem;
+    padding: .25rem .65rem;
+  }
+}
+
+/* ── Horizontal scroll hints on touch ───────────────────────── */
+.overflow-x-scroll-touch {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}

@@ -295,7 +295,7 @@ export default function DynamicTable({
       )}
 
       {/* ── Table ─────────────────────────────────────────────────── */}
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center' }}>
             <span className="spinner" style={{ width: '2rem', height: '2rem' }} />
