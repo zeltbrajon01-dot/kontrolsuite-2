@@ -1,8 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import Input from '../components/ui/Input'
 import Button from '../components/ui/Button'
+
+const MAX_ATTEMPTS  = 5
+const LOCKOUT_MS    = 5 * 60 * 1000  // 5 minutes
 
 export default function Login() {
   const { login } = useAuth()
@@ -11,10 +14,20 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
+  const attemptsRef = useRef({ count: 0, lockUntil: 0 })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    const now = Date.now()
+    if (attemptsRef.current.lockUntil > now) {
+      const secs = Math.ceil((attemptsRef.current.lockUntil - now) / 1000)
+      const mins = Math.floor(secs / 60)
+      const s    = secs % 60
+      setError(`Cuenta bloqueada por demasiados intentos. Espera ${mins}:${String(s).padStart(2,'0')} min.`)
+      return
+    }
 
     if (!email.trim())    { setError('Ingresa tu correo electrónico.');  return }
     if (!password)        { setError('Ingresa tu contraseña.');           return }
@@ -24,10 +37,17 @@ export default function Login() {
     setLoading(false)
 
     if (err) {
-      // Traducir mensajes de Supabase al español
+      attemptsRef.current.count++
+      if (attemptsRef.current.count >= MAX_ATTEMPTS) {
+        attemptsRef.current.lockUntil = Date.now() + LOCKOUT_MS
+        attemptsRef.current.count = 0
+        setError('Demasiados intentos fallidos. Acceso bloqueado por 5 minutos.')
+        return
+      }
+      const remaining = MAX_ATTEMPTS - attemptsRef.current.count
       const msg = err.message ?? ''
       if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
-        setError('Correo o contraseña incorrectos.')
+        setError(`Correo o contraseña incorrectos. (${remaining} intento${remaining !== 1 ? 's' : ''} restante${remaining !== 1 ? 's' : ''})`)
       } else if (msg.includes('Email not confirmed')) {
         setError('Debes confirmar tu correo antes de iniciar sesión.')
       } else if (msg.includes('Too many requests')) {
@@ -35,6 +55,8 @@ export default function Login() {
       } else {
         setError(err.message)
       }
+    } else {
+      attemptsRef.current = { count: 0, lockUntil: 0 }
     }
     // Si no hay error: isAuthenticated se vuelve true → PublicRoute redirige a /dashboard
   }

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   EnvelopeIcon, ChatBubbleLeftRightIcon, ClockIcon,
   PlusIcon, PaperAirplaneIcon, TrashIcon,
+  ChatBubbleLeftEllipsisIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../contexts/AuthContext'
 import supabase from '../lib/supabase'
@@ -27,9 +28,10 @@ import Button from '../components/ui/Button'
  */
 
 const TABS = [
-  { id: 'campanas',   label: 'Campañas Email', icon: EnvelopeIcon              },
-  { id: 'whatsapp',   label: 'WhatsApp',       icon: ChatBubbleLeftRightIcon   },
-  { id: 'historial',  label: 'Historial',      icon: ClockIcon                 },
+  { id: 'campanas',   label: 'Campañas Email', icon: EnvelopeIcon                    },
+  { id: 'chat',       label: 'Chat Interno',   icon: ChatBubbleLeftEllipsisIcon      },
+  { id: 'whatsapp',   label: 'WhatsApp',       icon: ChatBubbleLeftRightIcon         },
+  { id: 'historial',  label: 'Historial',      icon: ClockIcon                       },
 ]
 
 const HISTORIAL_COLS = [
@@ -210,6 +212,153 @@ function CampanasTab({ empresaId, perfil }) {
   )
 }
 
+// ── Chat Interno (Supabase Realtime) ─────────────────────────────
+function ChatTab({ empresaId, perfil }) {
+  const [msgs,    setMsgs]    = useState([])
+  const [input,   setInput]   = useState('')
+  const [loading, setLoading] = useState(true)
+  const endRef    = useRef(null)
+  const inputRef  = useRef(null)
+
+  useEffect(() => {
+    if (!empresaId) return
+
+    supabase.from('mensajes').select('*')
+      .eq('empresa_id', empresaId)
+      .order('created_at', { ascending: true })
+      .limit(200)
+      .then(({ data }) => { setMsgs(data || []); setLoading(false) })
+
+    const channel = supabase
+      .channel(`chat:${empresaId}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'mensajes',
+        filter: `empresa_id=eq.${empresaId}`,
+      }, ({ new: msg }) => {
+        setMsgs(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg])
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [empresaId])
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [msgs])
+
+  const send = async () => {
+    const text = input.trim()
+    if (!text || !empresaId || !perfil) return
+    setInput('')
+    const tmp = {
+      id: `tmp-${Date.now()}`, empresa_id: empresaId,
+      usuario_id: perfil.id, usuario_nombre: perfil.nombre,
+      contenido: text, created_at: new Date().toISOString(), _sending: true,
+    }
+    setMsgs(prev => [...prev, tmp])
+    const { data } = await supabase.from('mensajes').insert({
+      empresa_id: empresaId, usuario_id: perfil.id,
+      usuario_nombre: perfil.nombre, contenido: text,
+    }).select().single()
+    if (data) setMsgs(prev => prev.map(m => m.id === tmp.id ? data : m))
+  }
+
+  const onKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+  }
+
+  const isMe  = (msg) => msg.usuario_id === perfil?.id
+  const fmtTs = (ts) => new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: 540 }}>
+      {/* Messages */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '1rem',
+        display: 'flex', flexDirection: 'column', gap: '.5rem',
+        background: 'var(--surface-2)', borderRadius: '.6rem .6rem 0 0',
+        border: '1px solid var(--border)', borderBottom: 'none',
+      }}>
+        {loading && <div style={{ textAlign: 'center', padding: '2rem' }}><span className="spinner" /></div>}
+        {!loading && msgs.length === 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', fontSize: '.875rem' }}>
+            Sin mensajes aún. ¡Sé el primero en escribir!
+          </div>
+        )}
+        {msgs.map(msg => (
+          <div key={msg.id} style={{
+            display: 'flex',
+            flexDirection: isMe(msg) ? 'row-reverse' : 'row',
+            gap: '.5rem', alignItems: 'flex-end',
+          }}>
+            {!isMe(msg) && (
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: 'var(--primary)', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '.73rem', fontWeight: 700, flexShrink: 0,
+              }}>
+                {msg.usuario_nombre?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
+            <div style={{ maxWidth: '68%' }}>
+              {!isMe(msg) && (
+                <div style={{ fontSize: '.7rem', color: 'var(--text-muted)', marginBottom: '.15rem', paddingLeft: '.2rem' }}>
+                  {msg.usuario_nombre}
+                </div>
+              )}
+              <div style={{
+                background:   isMe(msg) ? 'var(--primary)' : 'var(--surface)',
+                color:        isMe(msg) ? '#fff' : 'var(--text)',
+                borderRadius: isMe(msg) ? '.875rem .875rem 0 .875rem' : '.875rem .875rem .875rem 0',
+                padding:      '.45rem .85rem',
+                fontSize:     '.875rem',
+                lineHeight:   1.45,
+                opacity:      msg._sending ? 0.65 : 1,
+                border:       '1px solid var(--border)',
+              }}>
+                {msg.contenido}
+              </div>
+              <div style={{
+                fontSize: '.68rem', color: 'var(--text-muted)', marginTop: '.1rem',
+                textAlign: isMe(msg) ? 'right' : 'left',
+                paddingLeft: isMe(msg) ? 0 : '.2rem',
+                paddingRight: isMe(msg) ? '.2rem' : 0,
+              }}>
+                {fmtTs(msg.created_at)}
+              </div>
+            </div>
+          </div>
+        ))}
+        <div ref={endRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{
+        borderTop: '1px solid var(--border)', padding: '.65rem .75rem',
+        display: 'flex', gap: '.5rem', alignItems: 'flex-end',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)', borderTop: 'none',
+        borderRadius: '0 0 .6rem .6rem',
+      }}>
+        <textarea
+          ref={inputRef}
+          className="input-themed"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={onKey}
+          placeholder="Escribe un mensaje… (Enter para enviar, Shift+Enter nueva línea)"
+          rows={1}
+          style={{ flex: 1, resize: 'none', minHeight: 38, maxHeight: 100 }}
+        />
+        <Button onClick={send} disabled={!input.trim()} style={{ flexShrink: 0, padding: '.5rem .75rem' }}>
+          <PaperAirplaneIcon style={{ width: '1rem', height: '1rem' }} />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // ── WhatsApp links ────────────────────────────────────────────────
 function WhatsAppTab({ empresaId }) {
   const [numero, setNumero]   = useState('')
@@ -324,6 +473,7 @@ export default function Comunicaciones() {
         onChange={setActiveTab}
         panels={{
           campanas:  <CampanasTab empresaId={empresaId} perfil={perfil} />,
+          chat:      <ChatTab empresaId={empresaId} perfil={perfil} />,
           whatsapp:  <WhatsAppTab empresaId={empresaId} />,
           historial: (
             <DynamicTable

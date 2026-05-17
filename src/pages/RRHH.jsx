@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   UsersIcon, DocumentTextIcon, ChartBarIcon, StarIcon,
-  ArrowDownTrayIcon,
+  ArrowDownTrayIcon, CalendarDaysIcon, FolderOpenIcon, TrashIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../contexts/AuthContext'
 import supabase from '../lib/supabase'
@@ -29,10 +29,12 @@ import Button from '../components/ui/Button'
  */
 
 const TABS = [
-  { id: 'empleados',   label: 'Empleados',   icon: UsersIcon        },
-  { id: 'nomina',      label: 'Nómina',      icon: DocumentTextIcon  },
-  { id: 'organigrama', label: 'Organigrama', icon: ChartBarIcon      },
-  { id: 'evaluacion',  label: 'Evaluación',  icon: StarIcon          },
+  { id: 'empleados',   label: 'Empleados',   icon: UsersIcon          },
+  { id: 'asistencias', label: 'Asistencias', icon: CalendarDaysIcon   },
+  { id: 'nomina',      label: 'Nómina',      icon: DocumentTextIcon   },
+  { id: 'expediente',  label: 'Expediente',  icon: FolderOpenIcon     },
+  { id: 'organigrama', label: 'Organigrama', icon: ChartBarIcon       },
+  { id: 'evaluacion',  label: 'Evaluación',  icon: StarIcon           },
 ]
 
 const EMPLEADOS_COLS = [
@@ -81,6 +83,330 @@ const EVAL_COLS = [
   { key: 'puntaje',         label: 'Puntaje',    type: 'number', editable: true, width: '90px',  builtin: true },
   { key: 'comentarios',     label: 'Comentarios',type: 'text',   editable: true, width: '300px', builtin: true },
 ]
+
+// ── Asistencias — calendario mensual ─────────────────────────────
+const TIPOS_ASIS  = ['presente', 'ausente', 'tardanza', 'permiso', 'vacaciones']
+const ASIS_COLOR  = {
+  presente:   { bg: 'var(--success)',  text: '#fff' },
+  ausente:    { bg: 'var(--danger)',   text: '#fff' },
+  tardanza:   { bg: 'var(--warning)',  text: '#fff' },
+  permiso:    { bg: 'var(--primary)',  text: '#fff' },
+  vacaciones: { bg: '#8b5cf6',         text: '#fff' },
+}
+const ASIS_SHORT  = { presente: 'P', ausente: 'A', tardanza: 'T', permiso: 'PE', vacaciones: 'V' }
+
+function AsistenciasTab({ empresaId }) {
+  const hoy  = new Date()
+  const [mes, setMes] = useState(
+    `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`
+  )
+  const [empleados,   setEmpleados]   = useState([])
+  const [asistencias, setAsistencias] = useState({})
+  const [loading,     setLoading]     = useState(true)
+  const [saving,      setSaving]      = useState(false)
+
+  const [year, month] = mes.split('-').map(Number)
+  const diasEnMes  = new Date(year, month, 0).getDate()
+  const dias       = Array.from({ length: diasEnMes }, (_, i) => i + 1)
+
+  useEffect(() => {
+    if (!empresaId) return
+    supabase.from('empleados').select('id,nombre')
+      .eq('empresa_id', empresaId).eq('estatus', 'activo')
+      .order('nombre', { ascending: true })
+      .then(({ data }) => setEmpleados(data || []))
+  }, [empresaId])
+
+  useEffect(() => {
+    if (!empresaId) return
+    setLoading(true)
+    const desde = `${mes}-01`
+    const hasta = `${mes}-${String(diasEnMes).padStart(2, '0')}`
+    supabase.from('asistencias').select('*').eq('empresa_id', empresaId)
+      .gte('fecha', desde).lte('fecha', hasta)
+      .then(({ data }) => {
+        const map = {};
+        (data || []).forEach(a => { map[`${a.empleado_id}-${a.fecha}`] = { tipo: a.tipo, id: a.id } })
+        setAsistencias(map)
+        setLoading(false)
+      })
+  }, [empresaId, mes, diasEnMes])
+
+  const navMes = (delta) => {
+    const d = new Date(year, month - 1 + delta, 1)
+    setMes(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+
+  const toggleCell = async (empId, empNombre, dia) => {
+    const fecha = `${mes}-${String(dia).padStart(2, '0')}`
+    const key   = `${empId}-${fecha}`
+    const actual = asistencias[key]
+    setSaving(true)
+    if (!actual) {
+      const { data } = await supabase.from('asistencias').insert({
+        empresa_id: empresaId, empleado_id: empId,
+        empleado_nombre: empNombre, fecha, tipo: 'presente',
+      }).select().single()
+      if (data) setAsistencias(prev => ({ ...prev, [key]: { tipo: 'presente', id: data.id } }))
+    } else {
+      const next = TIPOS_ASIS[(TIPOS_ASIS.indexOf(actual.tipo) + 1) % TIPOS_ASIS.length]
+      await supabase.from('asistencias').update({ tipo: next }).eq('id', actual.id)
+      setAsistencias(prev => ({ ...prev, [key]: { ...prev[key], tipo: next } }))
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Nav */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <button className="btn-ghost" onClick={() => navMes(-1)}>← Anterior</button>
+        <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text)', textTransform: 'capitalize' }}>
+          {new Date(year, month - 1, 1).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
+        </span>
+        <button className="btn-ghost" onClick={() => navMes(1)}>Siguiente →</button>
+        {saving && <span className="spinner" style={{ width: 16, height: 16 }} />}
+      </div>
+
+      {/* Leyenda */}
+      <div style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        {TIPOS_ASIS.map(t => (
+          <span key={t} style={{
+            background: ASIS_COLOR[t]?.bg, color: ASIS_COLOR[t]?.text,
+            borderRadius: '9999px', padding: '.15rem .55rem',
+            fontSize: '.7rem', fontWeight: 700,
+          }}>
+            {ASIS_SHORT[t]} = {t}
+          </span>
+        ))}
+        <span style={{ fontSize: '.7rem', color: 'var(--text-muted)' }}>· Click para marcar / ciclar</span>
+      </div>
+
+      {/* Grid */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '2rem' }}><span className="spinner" /></div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', minWidth: '100%', fontSize: '.77rem' }}>
+            <thead>
+              <tr>
+                <th style={{
+                  padding: '.45rem .75rem', textAlign: 'left',
+                  background: 'var(--surface-2)', color: 'var(--text)',
+                  borderBottom: '2px solid var(--border)',
+                  position: 'sticky', left: 0, zIndex: 2, minWidth: 160,
+                }}>
+                  Empleado
+                </th>
+                {dias.map(d => {
+                  const wd = new Date(year, month - 1, d).getDay()
+                  const wk = wd === 0 || wd === 6
+                  return (
+                    <th key={d} style={{
+                      padding: '.35rem .2rem', textAlign: 'center', minWidth: 34,
+                      background: wk ? 'rgba(99,102,241,.1)' : 'var(--surface-2)',
+                      color: wk ? 'var(--primary)' : 'var(--text-muted)',
+                      borderBottom: '2px solid var(--border)',
+                      borderLeft: '1px solid var(--border)',
+                      fontWeight: wk ? 700 : 500,
+                    }}>
+                      {d}
+                    </th>
+                  )
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {empleados.length === 0 && (
+                <tr>
+                  <td colSpan={diasEnMes + 1} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    Sin empleados activos.
+                  </td>
+                </tr>
+              )}
+              {empleados.map((emp, ri) => {
+                const rowBg = ri % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)'
+                return (
+                  <tr key={emp.id} style={{ background: rowBg }}>
+                    <td style={{
+                      padding: '.4rem .75rem', fontWeight: 600, color: 'var(--text)',
+                      borderBottom: '1px solid var(--border)',
+                      position: 'sticky', left: 0, background: rowBg, zIndex: 1,
+                    }}>
+                      {emp.nombre}
+                    </td>
+                    {dias.map(d => {
+                      const fecha = `${mes}-${String(d).padStart(2, '0')}`
+                      const key   = `${emp.id}-${fecha}`
+                      const a     = asistencias[key]
+                      const col   = a ? (ASIS_COLOR[a.tipo] || { bg: 'var(--primary)', text: '#fff' }) : null
+                      return (
+                        <td key={d} style={{
+                          padding: '.2rem .1rem', textAlign: 'center',
+                          borderBottom: '1px solid var(--border)',
+                          borderLeft: '1px solid var(--border)',
+                        }}>
+                          <div
+                            onClick={() => toggleCell(emp.id, emp.nombre, d)}
+                            title={a ? a.tipo : 'Sin marcar'}
+                            style={{
+                              width: 28, height: 22, margin: '0 auto',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              borderRadius: '.3rem', cursor: 'pointer',
+                              background: col ? col.bg : 'transparent',
+                              color: col ? col.text : 'var(--border)',
+                              fontSize: '.68rem', fontWeight: 700,
+                              transition: 'background .12s',
+                            }}
+                          >
+                            {a ? (ASIS_SHORT[a.tipo] || a.tipo[0].toUpperCase()) : '·'}
+                          </div>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Expediente digital — Supabase Storage ─────────────────────────
+function ExpedienteTab({ empresaId }) {
+  const [empleados,    setEmpleados]    = useState([])
+  const [selectedId,   setSelectedId]   = useState('')
+  const [files,        setFiles]        = useState([])
+  const [uploading,    setUploading]    = useState(false)
+  const [uploadError,  setUploadError]  = useState(null)
+  const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!empresaId) return
+    supabase.from('empleados').select('id,nombre')
+      .eq('empresa_id', empresaId).eq('estatus', 'activo')
+      .order('nombre', { ascending: true })
+      .then(({ data }) => setEmpleados(data || []))
+  }, [empresaId])
+
+  useEffect(() => {
+    if (!selectedId || !empresaId) { setFiles([]); return }
+    loadFiles()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, empresaId])
+
+  const loadFiles = async () => {
+    const { data, error } = await supabase.storage
+      .from('expedientes')
+      .list(`${empresaId}/${selectedId}`, { sortBy: { column: 'created_at', order: 'desc' } })
+    if (!error) setFiles(data || [])
+  }
+
+  const upload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedId || !empresaId) return
+    if (file.size > 10 * 1024 * 1024) { setUploadError('El archivo supera el límite de 10 MB.'); return }
+    setUploading(true)
+    setUploadError(null)
+    const path = `${empresaId}/${selectedId}/${Date.now()}_${file.name}`
+    const { error } = await supabase.storage.from('expedientes').upload(path, file)
+    if (error) setUploadError(error.message)
+    else await loadFiles()
+    setUploading(false)
+    e.target.value = ''
+  }
+
+  const remove = async (fileName) => {
+    await supabase.storage.from('expedientes').remove([`${empresaId}/${selectedId}/${fileName}`])
+    await loadFiles()
+  }
+
+  const getUrl = (fileName) => {
+    const { data } = supabase.storage.from('expedientes')
+      .getPublicUrl(`${empresaId}/${selectedId}/${fileName}`)
+    return data?.publicUrl
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 680 }}>
+      <div>
+        <label style={{ display: 'block', fontSize: '.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '.3rem' }}>
+          Empleado
+        </label>
+        <select
+          className="input-themed"
+          style={{ width: '100%', maxWidth: 400 }}
+          value={selectedId}
+          onChange={e => setSelectedId(e.target.value)}
+        >
+          <option value="">Seleccionar empleado…</option>
+          {empleados.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+        </select>
+      </div>
+
+      {selectedId && (
+        <>
+          <div style={{ display: 'flex', gap: '.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={upload} />
+            <Button onClick={() => fileInputRef.current?.click()} loading={uploading} disabled={uploading}>
+              Subir documento
+            </Button>
+            <span style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>
+              PDF, DOCX, XLSX, PNG, JPG — máx. 10 MB
+            </span>
+          </div>
+
+          {uploadError && (
+            <div style={{ padding: '.6rem .75rem', background: 'rgba(239,68,68,.08)', border: '1px solid var(--danger)', borderRadius: '.4rem', fontSize: '.8rem', color: 'var(--danger)' }}>
+              Error: {uploadError}
+            </div>
+          )}
+
+          {files.length === 0 ? (
+            <div className="card" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '.875rem' }}>
+              Sin documentos en el expediente. Sube el primer archivo.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+              {files.map(f => (
+                <div key={f.name} className="card" style={{ padding: '.7rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem', minWidth: 0 }}>
+                    <DocumentTextIcon style={{ width: '1.2rem', height: '1.2rem', color: 'var(--primary)', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '.875rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {f.name.replace(/^\d+_/, '')}
+                      </div>
+                      {f.metadata?.size && (
+                        <div style={{ fontSize: '.73rem', color: 'var(--text-muted)' }}>
+                          {(f.metadata.size / 1024).toFixed(1)} KB
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '.4rem', flexShrink: 0 }}>
+                    <a
+                      href={getUrl(f.name)} target="_blank" rel="noreferrer"
+                      className="btn-ghost"
+                      style={{ padding: '.3rem .65rem', fontSize: '.8rem', textDecoration: 'none' }}
+                    >
+                      Ver
+                    </a>
+                    <button className="btn-ghost" onClick={() => remove(f.name)} style={{ padding: '.3rem', opacity: .65 }}>
+                      <TrashIcon style={{ width: '.85rem', height: '.85rem', color: 'var(--danger)' }} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
 
 // ── Organigrama simple ────────────────────────────────────────────
 function OrganigramaTab({ empresaId }) {
@@ -309,7 +635,9 @@ export default function RRHH() {
               ascending={true}
             />
           ),
+          asistencias: <AsistenciasTab empresaId={empresaId} />,
           nomina:      <NominaTab empresaId={empresaId} />,
+          expediente:  <ExpedienteTab empresaId={empresaId} />,
           organigrama: <OrganigramaTab empresaId={empresaId} />,
           evaluacion: (
             <DynamicTable
